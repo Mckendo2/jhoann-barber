@@ -80,29 +80,26 @@ app.use("/dashboard", dashboardRoutes);
 app.use("/reportes", reportesRoutes);
 app.use("/comisiones", comisionesRoutes);
 app.use("/reglas", reglasRoutes);
-app.get("/db/tables", async (req, res) => {
-  try {
-    const schema = req.query.schema || config.db.database;
-    const rows = await query(
-      `SELECT TABLE_NAME AS table_name
-       FROM information_schema.TABLES
-       WHERE TABLE_SCHEMA = ?
-       ORDER BY TABLE_NAME`,
-      [schema]
-    );
-    res.json({
-      db: schema,
-      tables: rows.map((r) => r.table_name),
-      has_permisos: rows.some((r) => r.table_name === "permisos"),
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+
+app.get("/robots.txt", (_req, res) => {
+  res.type("text/plain").send("User-agent: *\nDisallow:\n# Backend running OK");
+});
+
+app.get("/", (_req, res) => {
+  const now = new Date();
+  res.json({
+    message: "Jhoann Barber corriendo correctamente",
+    version: "1.0.0",
+    environment: config.app.env || "production",
+    timezone: process.env.TZ,
+    now_utc: now.toISOString(),
+    now_local: now.toLocaleString("es-BO", { timeZone: process.env.TZ }),
+  });
 });
 
 app.use((_req, res) => res.status(404).json({ message: "No encontrado" }));
+
 app.use((err, req, res, next) => {
-  console.error(err);
   const code = err.status || 500;
   res.status(code).json({ mensaje: err.message || "Error" });
 });

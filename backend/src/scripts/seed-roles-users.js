@@ -19,21 +19,21 @@ async function q(sql, params = []) {
 
 const usuariosSeed = [
   {
-    correo: "admin@local.com",
+    correo: "jhoannbarber@gmail.com",
     pinPlano: "123456",
-    nombres: "Admin",
-    apellidos: "Sistema",
+    nombres: "Jhoann",
+    apellidos: "Barber",
     rol: "Administrador",
   },
   {
-    correo: "admin@local.com",
+    correo: "cajero@gmail.com",
     pinPlano: "234567",
     nombres: "Cajero",
     apellidos: "Caja",
     rol: "Cajero",
   },
   {
-    correo: "admin@local.com",
+    correo: "barbero@gmail.com",
     pinPlano: "345678",
     nombres: "Barbero",
     apellidos: "Salon",
@@ -43,40 +43,35 @@ const usuariosSeed = [
 
 const permisos = {
   Administrador: [
-    "ver_usuarios",
-    "gestionar_usuarios",
-    "ver_roles",
-    "gestionar_roles",
-    "ver_permisos",
-    "gestionar_permisos",
-    "ver_servicios",
-    "gestionar_servicios",
-    "ver_productos",
-    "gestionar_productos",
-    "ver_barberos",
-    "gestionar_barberos",
-    "ver_gastos",
-    "gestionar_gastos",
-    "ver_ventas",
-    "gestionar_ventas",
-    "ver_pagos",
-    "gestionar_pagos",
-    "ver_auditoria",
     "gestionar_auditoria",
-    "ver_clientes",
-    "gestionar_horario",
-    "ver_citas",
+    "gestionar_barberos",
+    "gestionar_citas",
+    "gestionar_contactos",
+    "gestionar_gastos",
+    "gestionar_mensajes",
+    "gestionar_permisos",
+    "gestionar_productos",
+    "gestionar_reglas",
+    "gestionar_reportes",
+    "gestionar_roles",
+    "gestionar_servicios",
+    "gestionar_usuarios",
+    "gestionar_ventas",
   ],
   Cajero: [
-    "ver_ventas",
-    "gestionar_ventas",
-    "ver_pagos",
-    "gestionar_pagos",
-    "ver_productos",
-    "ver_servicios",
-    "ver_clientes",
+    "gestionar_citas",
+    "gestionar_gastos",
+    "gestionar_mensajes",
+    "gestionar_productos",
+    "gestionar_reportes",
+    "gestionar_servicios",
   ],
-  Barbero: ["ver_servicios", "ver_barberos", "gestionar_horario", "ver_citas"],
+  Barbero: [
+    "gestionar_citas",
+    "gestionar_mensajes",
+    "gestionar_productos",
+    "gestionar_ventas",
+  ],
 };
 
 async function ensurePermisos(claves) {
@@ -201,9 +196,9 @@ async function main() {
       });
     }
     console.log("Listo. Usuarios y roles creados.");
-    console.log("Admin -> admin@local.com / 123456");
-    console.log("Cajero -> cajero@local.com / 234567");
-    console.log("Barbero -> barbero@local.com / 345678");
+    console.log("Admin -> jhoannbarber@gmail.com / 123456");
+    console.log("Cajero -> cajero@gmail.com / 234567");
+    console.log("Barbero -> barbero@gmail.com / 345678");
     process.exit(0);
   } catch (e) {
     console.error("Error:", e.message || e);
