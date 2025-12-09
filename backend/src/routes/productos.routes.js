@@ -19,12 +19,7 @@ r.get("/", requireAuth, listarProductos);
 r.get("/:id", requireAuth, detalleProducto);
 r.put("/:id", requireAuth, actualizarProducto);
 r.delete("/:id", requireAuth, eliminarProducto);
-r.post(
-  "/:id/fotos",
-  requireAuth,
-  uploadProductos.array("fotos", 10),
-  agregarFotos
-);
+r.post("/:id/fotos", requireAuth, uploadProductos, agregarFotos);
 r.delete("/:id/fotos/:fotoId", requireAuth, eliminarFoto);
 r.patch("/:id/fotos/:fotoId/principal", requireAuth, setFotoPrincipal);
 

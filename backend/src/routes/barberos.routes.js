@@ -31,12 +31,7 @@ r.get("/:id/bloqueos", requireAuth, listarBloqueosBarbero);
 r.post("/:id/bloqueos", requireAuth, crearBloqueoBarbero);
 r.delete("/:id/bloqueos/:bloqueoId", requireAuth, eliminarBloqueoBarbero);
 r.get("/:id/contrato", requireAuth, obtenerContratoBarbero);
-r.post(
-  "/:id/contrato",
-  requireAuth,
-  uploadContratos.single("comprobante"),
-  subirContratoBarbero
-);
+r.post("/:id/contrato", requireAuth, uploadContratos, subirContratoBarbero);
 r.delete("/:id/contrato/:contratoId", requireAuth, eliminarContratoBarbero);
 
 r.get("/:id/sanciones", requireAuth, listarSancionesBarbero);

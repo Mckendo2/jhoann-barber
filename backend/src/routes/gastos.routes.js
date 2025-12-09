@@ -24,8 +24,8 @@ r.post("/categorias", requireAuth, crearCategoria);
 r.put("/categorias/:id", requireAuth, actualizarCategoria);
 
 r.get("/", requireAuth, listarGastos);
-r.post("/", requireAuth, uploadGastos.single("comprobante"), crearGasto);
-r.put("/:id", requireAuth, uploadGastos.single("comprobante"), actualizarGasto);
+r.post("/", requireAuth, uploadGastos, crearGasto);
+r.put("/:id", requireAuth, uploadGastos, actualizarGasto);
 r.delete("/:id", requireAuth, eliminarGasto);
 
 r.get("/movimientos/listado", requireAuth, listarMovimientos);

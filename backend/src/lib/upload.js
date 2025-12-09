@@ -1,25 +1,54 @@
+import { v2 as cloudinary } from "cloudinary";
+import streamifier from "streamifier";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const uploadMemory = multer({ storage: multer.memoryStorage() });
+
+function uploader(folder) {
+  return async function (req, res, next) {
+    try {
+      const files = req.files || (req.file ? [req.file] : []);
+      const uploads = await Promise.all(
+        files.map(
+          (f) =>
+            new Promise((resolve, reject) => {
+              const s = cloudinary.uploader.upload_stream({ folder }, (e, r) =>
+                e ? reject(e) : resolve(r)
+              );
+              streamifier.createReadStream(f.buffer).pipe(s);
+            })
+        )
+      );
+      req.cloudinaryUploads = uploads;
+      next();
+    } catch (e) {
+      next(e);
+    }
+  };
 }
 
-function storageFactory(subfolder) {
-  const dir = path.join(process.cwd(), "upload", subfolder);
-  ensureDir(dir);
-  return multer.diskStorage({
-    destination: (_, __, cb) => cb(null, dir),
-    filename: (_, file, cb) => {
-      const ext = path.extname(file.originalname || "");
-      const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      cb(null, name);
-    },
-  });
-}
+export const uploadProductos = [
+  uploadMemory.array("fotos", 10),
+  uploader("productos"),
+];
 
-export const uploadProductos = multer({ storage: storageFactory("productos") });
-export const uploadGastos = multer({ storage: storageFactory("gastos") });
-export const uploadServicios = multer({ storage: storageFactory("servicios") });
-export const uploadContratos = multer({ storage: storageFactory("contratos") });
+export const uploadServicios = [
+  uploadMemory.single("imagen"),
+  uploader("servicios"),
+];
+
+export const uploadGastos = [
+  uploadMemory.single("comprobante"),
+  uploader("gastos"),
+];
+
+export const uploadContratos = [
+  uploadMemory.single("comprobante"),
+  uploader("contratos"),
+];

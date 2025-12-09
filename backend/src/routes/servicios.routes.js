@@ -24,13 +24,7 @@ r.get("/:id", requireAuth, detalleServicio);
 r.put("/:id", requireAuth, actualizarServicio);
 r.delete("/:id", requireAuth, eliminarServicio);
 
-r.post(
-  "/:id/imagen",
-  requireAuth,
-  uploadServicios.single("imagen"),
-  agregarImagenServicio
-);
-
+r.post("/:id/imagen", requireAuth, uploadServicios, agregarImagenServicio);
 r.delete("/:id/imagen", requireAuth, eliminarImagenServicio);
 
 export default r;
