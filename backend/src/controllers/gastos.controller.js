@@ -1,19 +1,5 @@
 import { z } from "zod";
-import path from "path";
-import fs from "fs/promises";
 import { pool } from "../db/mysql.js";
-
-function toUrl(name) {
-  return `/upload/gastos/${name}`;
-}
-function toAbs(url) {
-  return path.join(process.cwd(), url.replace(/^\//, ""));
-}
-async function borrarArchivo(url) {
-  try {
-    await fs.unlink(toAbs(url));
-  } catch {}
-}
 
 const crearSchema = z.object({
   fecha: z.string().min(8),
@@ -40,8 +26,10 @@ export async function listarGastos(req, res) {
   const hasta = req.query.hasta || null;
   const cat = req.query.categoria_id ? Number(req.query.categoria_id) : null;
   const q = req.query.q ? `%${req.query.q}%` : null;
+
   const cond = ["g.esta_activo=1"];
   const vals = [];
+
   if (desde) {
     cond.push("g.fecha>=?");
     vals.push(desde);
@@ -55,22 +43,35 @@ export async function listarGastos(req, res) {
     vals.push(cat);
   }
   if (q) {
-    cond.push("(g.descripcion LIKE ?)");
+    cond.push("g.descripcion LIKE ?");
     vals.push(q);
   }
+
   const where = `WHERE ${cond.join(" AND ")}`;
+
   const [[{ total }]] = await pool.query(
     `SELECT COUNT(1) total FROM gastos g ${where}`,
     vals
   );
+
   const [rows] = await pool.query(
-    `SELECT g.id,g.fecha,g.monto,g.descripcion,g.gasto_categoria_id,g.comprobante_url,g.creado_en,c.nombre AS categoria
-     FROM gastos g JOIN gasto_categorias c ON c.id=g.gasto_categoria_id
+    `SELECT 
+      g.id,
+      g.fecha,
+      g.monto,
+      g.descripcion,
+      g.gasto_categoria_id,
+      g.comprobante_url,
+      g.creado_en,
+      c.nombre AS categoria
+     FROM gastos g
+     JOIN gasto_categorias c ON c.id=g.gasto_categoria_id
      ${where}
-     ORDER BY g.fecha DESC,g.id DESC
+     ORDER BY g.fecha DESC, g.id DESC
      LIMIT ? OFFSET ?`,
     [...vals, per, (page - 1) * per]
   );
+
   res.json({
     data: rows,
     meta: { total, page, per_page: per, pages: Math.ceil(total / per) },
@@ -79,14 +80,20 @@ export async function listarGastos(req, res) {
 
 export async function crearGasto(req, res) {
   const raw = req.body || {};
+
   const p = crearSchema.safeParse({
     fecha: raw.fecha,
     monto: Number(raw.monto),
     descripcion: raw.descripcion,
     gasto_categoria_id: Number(raw.gasto_categoria_id),
   });
-  if (!p.success) return res.status(422).json({ mensaje: "Datos inválidos" });
-  const file = req.file ? toUrl(path.basename(req.file.path)) : null;
+
+  if (!p.success) {
+    return res.status(422).json({ mensaje: "Datos inválidos" });
+  }
+
+  const comprobante_url = req.cloudinaryUploads?.[0]?.secure_url ?? null;
+
   const [r] = await pool.execute(
     "INSERT INTO gastos (fecha,monto,descripcion,gasto_categoria_id,comprobante_url,esta_activo,creado_por,actualizado_por) VALUES (?,?,?,?,?,?,?,?)",
     [
@@ -94,12 +101,13 @@ export async function crearGasto(req, res) {
       p.data.monto,
       p.data.descripcion,
       p.data.gasto_categoria_id,
-      file,
+      comprobante_url,
       1,
       req.usuario?.sub || null,
       req.usuario?.sub || null,
     ]
   );
+
   await pool.execute(
     "INSERT INTO movimientos_financieros (fecha,tipo,categoria,monto,fuente_tipo,fuente_id,nota,esta_activo,creado_por,actualizado_por) VALUES (?,?,?,?,?,?,?,?,?,?)",
     [
@@ -115,16 +123,19 @@ export async function crearGasto(req, res) {
       req.usuario?.sub || null,
     ]
   );
+
   const [row] = await pool.execute(
     "SELECT id,fecha,monto,descripcion,gasto_categoria_id,comprobante_url FROM gastos WHERE id=?",
     [r.insertId]
   );
+
   res.status(201).json({ data: row[0] });
 }
 
 export async function actualizarGasto(req, res) {
   const id = Number(req.params.id);
   const raw = req.body || {};
+
   const p = actualizarSchema.safeParse({
     fecha: raw.fecha,
     monto: raw.monto != null ? Number(raw.monto) : undefined,
@@ -136,19 +147,26 @@ export async function actualizarGasto(req, res) {
     esta_activo:
       typeof raw.esta_activo === "boolean" ? raw.esta_activo : undefined,
   });
-  if (!p.success) return res.status(422).json({ mensaje: "Datos inválidos" });
+
+  if (!p.success) {
+    return res.status(422).json({ mensaje: "Datos inválidos" });
+  }
+
   const [prev] = await pool.execute(
     "SELECT comprobante_url FROM gastos WHERE id=?",
     [id]
   );
-  if (!prev.length) return res.status(404).json({ mensaje: "No encontrado" });
-  let nuevoComprobante = prev[0].comprobante_url;
-  if (req.file) {
-    const url = toUrl(path.basename(req.file.path));
-    if (nuevoComprobante && url !== nuevoComprobante)
-      await borrarArchivo(nuevoComprobante);
-    nuevoComprobante = url;
+
+  if (!prev.length) {
+    return res.status(404).json({ mensaje: "No encontrado" });
   }
+
+  let nuevoComprobante = prev[0].comprobante_url;
+
+  if (req.cloudinaryUploads?.length) {
+    nuevoComprobante = req.cloudinaryUploads[0].secure_url;
+  }
+
   await pool.execute(
     "UPDATE gastos SET fecha=COALESCE(?,fecha), monto=COALESCE(?,monto), descripcion=COALESCE(?,descripcion), gasto_categoria_id=COALESCE(?,gasto_categoria_id), comprobante_url=?, esta_activo=COALESCE(?,esta_activo), actualizado_por=? WHERE id=?",
     [
@@ -166,10 +184,12 @@ export async function actualizarGasto(req, res) {
       id,
     ]
   );
+
   const [g] = await pool.execute(
     "SELECT fecha,monto,descripcion FROM gastos WHERE id=?",
     [id]
   );
+
   await pool.execute(
     "UPDATE movimientos_financieros SET fecha=?, monto=?, nota=?, actualizado_por=? WHERE fuente_tipo='gasto' AND fuente_id=?",
     [
@@ -180,22 +200,27 @@ export async function actualizarGasto(req, res) {
       id,
     ]
   );
+
   const [row] = await pool.execute(
     "SELECT id,fecha,monto,descripcion,gasto_categoria_id,comprobante_url,esta_activo FROM gastos WHERE id=?",
     [id]
   );
+
   res.json({ data: row[0] });
 }
 
 export async function eliminarGasto(req, res) {
   const id = Number(req.params.id);
+
   await pool.execute(
     "UPDATE gastos SET esta_activo=0, actualizado_por=? WHERE id=?",
     [req.usuario?.sub || null, id]
   );
+
   await pool.execute(
     "UPDATE movimientos_financieros SET esta_activo=0, actualizado_por=? WHERE fuente_tipo='gasto' AND fuente_id=?",
     [req.usuario?.sub || null, id]
   );
+
   res.json({ mensaje: "Eliminado" });
 }
